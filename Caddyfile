@@ -1,3 +1,38 @@
 acervo.casadevideo.com.br {
-    reverse_proxy app:8000
+	reverse_proxy app:8000
+}
+
+casadevideo.com.br {
+	root * /srv/casadevideo
+	encode gzip zstd
+	try_files {path} {path}/ {path}.html
+	file_server
+
+	# nunca servir repositorio nem ferramentas de build
+	@privado path /.git/* /.gitignore /build_standalone.py /Documentos/htmloriginalwix.md
+	respond @privado 404
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	@estatico path /css/* /js/* /Galeria/* /Documentos/*
+	header @estatico Cache-Control "public, max-age=604800"
+}
+
+www.casadevideo.com.br {
+	redir https://casadevideo.com.br{uri} permanent
+}
+
+# preview interno via tunel SSH (so acessivel de dentro da VM)
+:8080 {
+	root * /srv/casadevideo
+	encode gzip
+	try_files {path} {path}/ {path}.html
+	file_server
+
+	@privado path /.git/* /.gitignore /build_standalone.py
+	respond @privado 404
 }

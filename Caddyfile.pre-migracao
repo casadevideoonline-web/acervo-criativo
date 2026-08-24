@@ -1,0 +1,14 @@
+acervo.casadevideo.com.br {
+    reverse_proxy app:8000
+}
+
+# --- TEMPORÁRIO: preview do site novo via túnel SSH (remover após migrar o DNS) ---
+:8080 {
+    root * /srv/casadevideo
+    encode gzip
+    try_files {path} {path}/ {path}.html
+    file_server
+
+    @privado path /.git/* /.gitignore /build_standalone.py
+    respond @privado 404
+}
