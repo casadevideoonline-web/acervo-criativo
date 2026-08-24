@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acervo Inspiracional Casa de Vídeo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-title">Tags principais</div>
+      <div class="tag-list" id="tag-list"></div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-mark" src="logo.png" alt="Casa de Vídeo">
+          <span class="brand-name">Acervo Inspiracional Casa de Vídeo</span>
+        </div>
+        <form class="search-form" id="search-form">
+          <input type="text" id="search-input" placeholder="Buscar por conteúdo — ex: 'reunião externa', 'produto na esteira'..." autocomplete="off">
+          <button type="submit">Buscar</button>
+        </form>
+      </header>
+
+      <main id="results" class="grid"></main>
+
+      <p id="empty-state" class="empty-state" hidden>Nenhum vídeo encontrado. Tente outra busca ou remova os filtros de tag.</p>
+      <p id="loading-state" class="loading-state" hidden>Buscando…</p>
+    </div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-content">
+      <button class="modal-close" id="modal-close">✕ Fechar</button>
+      <div class="video-wrap">
+        <button class="nav-btn nav-prev" id="nav-prev" title="Vídeo anterior">‹</button>
+        <button class="nav-btn nav-next" id="nav-next" title="Próximo vídeo">›</button>
+        <video id="modal-video" controls preload="metadata"></video>
+        <p class="video-error" id="video-error" hidden>
+          Não foi possível carregar a prévia deste vídeo no navegador.
+          <a id="video-direct-link" href="#" target="_blank">Clique aqui para abrir o vídeo diretamente</a>.
+        </p>
+      </div>
+      <div class="modal-meta">
+        <div class="modal-file-row">
+          <div class="modal-file" id="modal-file"></div>
+          <a class="download-btn" id="download-link" download>⬇ Baixar vídeo</a>
+        </div>
+        <div class="tag-editor">
+          <div class="current-tags" id="current-tags"></div>
+          <div class="tag-suggestions" id="tag-suggestions"></div>
+          <form id="tag-form">
+            <input type="text" id="tag-input" placeholder="adicionar tag e pressionar Enter">
+          </form>
+        </div>
+        <div class="similar-section">
+          <div class="similar-title">Vídeos com estilo parecido</div>
+          <div class="similar-row" id="similar-row"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

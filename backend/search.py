@@ -1,0 +1,223 @@
+"""
+search.py
+=========
+Carrega todos os vídeos indexados (com seus embeddings) em memória e monta um
+índice FAISS para busca por similaridade. Combina isso com busca por tag.
+"""
+
+import json
+import sqlite3
+from typing import Optional
+
+import numpy as np
+
+_clip_model = None
+_clip_tokenizer = None
+
+
+def _load_clip():
+    global _clip_model, _clip_tokenizer
+    if _clip_model is None:
+        import open_clip
+
+        _clip_model, _, _ = open_clip.create_model_and_transforms(
+            "ViT-B-32", pretrained="laion2b_s34b_b79k"
+        )
+        _clip_model.eval()
+        _clip_tokenizer = open_clip.get_tokenizer("ViT-B-32")
+    return _clip_model, _clip_tokenizer
+
+
+def embed_text(query: str):
+    import torch
+
+    model, tokenizer = _load_clip()
+    tokens = tokenizer([query])
+    with torch.no_grad():
+        features = model.encode_text(tokens)
+        features /= features.norm(dim=-1, keepdim=True)
+    return features[0].numpy().astype("float32")
+
+
+class VideoIndex:
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.video_ids: list[str] = []
+        self.embeddings: Optional[np.ndarray] = None
+        self.index = None
+        self.reload()
+
+    def reload(self):
+        """Recarrega o índice a partir do banco (chamar após reprocessar vídeos)."""
+        import faiss
+
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "SELECT id, embedding_json FROM videos WHERE embedding_json IS NOT NULL"
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        conn.close()
+
+        self.video_ids = [r["id"] for r in rows]
+        if not rows:
+            self.embeddings = np.zeros((0, 512), dtype="float32")
+            self.index = faiss.IndexFlatIP(512)
+            return
+
+        vectors = np.array([json.loads(r["embedding_json"]) for r in rows], dtype="float32")
+        self.embeddings = vectors
+        self.index = faiss.IndexFlatIP(vectors.shape[1])
+        self.index.add(vectors)
+
+    def visual_search(self, query: str, top_k: int = 60):
+        """Retorna [(video_id, score), ...] ordenado por similaridade com o texto."""
+        if self.index is None or self.index.ntotal == 0:
+            return []
+        query_vec = embed_text(query).reshape(1, -1)
+        top_k = min(top_k, self.index.ntotal)
+        scores, indices = self.index.search(query_vec, top_k)
+        return [
+            (self.video_ids[idx], float(score))
+            for score, idx in zip(scores[0], indices[0])
+            if idx != -1
+        ]
+
+    def similar_to(self, video_id: str, top_k: int = 6):
+        """Retorna os vídeos visualmente mais parecidos com o vídeo dado
+        (usa o mesmo embedding CLIP, sem precisar de nenhum texto de busca)."""
+        if video_id not in self.video_ids or self.index is None or self.index.ntotal < 2:
+            return []
+        idx = self.video_ids.index(video_id)
+        query_vec = self.embeddings[idx:idx + 1]
+        k = min(top_k + 1, self.index.ntotal)  # +1 porque o próprio vídeo sempre aparece
+        scores, indices = self.index.search(query_vec, k)
+        results = []
+        for score, i in zip(scores[0], indices[0]):
+            if i == -1 or self.video_ids[i] == video_id:
+                continue
+            results.append((self.video_ids[i], float(score)))
+        return results[:top_k]
+
+
+def embed_texts(queries: list[str]):
+    """Versão em lote do embed_text, mais eficiente pra várias tags de uma vez."""
+    import torch
+
+    model, tokenizer = _load_clip()
+    tokens = tokenizer(queries)
+    with torch.no_grad():
+        features = model.encode_text(tokens)
+        features /= features.norm(dim=-1, keepdim=True)
+    return features.numpy().astype("float32")
+
+
+def suggest_tags(conn: sqlite3.Connection, video_index: VideoIndex,
+                  video_id: str, top_k: int = 3):
+    """Sugere, dentre as tags que JÁ EXISTEM no sistema, quais combinam melhor
+    com o conteúdo visual do vídeo (nunca inventa tags novas)."""
+    all_tags = [r["tag"] for r in conn.execute("SELECT DISTINCT tag FROM tags").fetchall()]
+    if not all_tags or video_id not in video_index.video_ids:
+        return []
+
+    existing = {r["tag"] for r in conn.execute(
+        "SELECT tag FROM tags WHERE video_id = ?", (video_id,)
+    ).fetchall()}
+    candidates = [t for t in all_tags if t not in existing]
+    if not candidates:
+        return []
+
+    idx = video_index.video_ids.index(video_id)
+    video_vec = video_index.embeddings[idx]
+    tag_vecs = embed_texts(candidates)
+    scores = tag_vecs @ video_vec
+
+    results = [{"tag": t, "score": float(s)} for t, s in zip(candidates, scores)]
+    results.sort(key=lambda r: r["score"], reverse=True)
+    return results[:top_k]
+
+
+def get_connection(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def get_similar_videos(conn: sqlite3.Connection, video_index: VideoIndex,
+                        video_id: str, limit: int = 6):
+    tag_rows = conn.execute("SELECT video_id, tag FROM tags").fetchall()
+    tags_by_video: dict[str, list[str]] = {}
+    for row in tag_rows:
+        tags_by_video.setdefault(row["video_id"], []).append(row["tag"].lower())
+
+    similar = video_index.similar_to(video_id, top_k=limit)
+    results = []
+    for vid, score in similar:
+        video = conn.execute("SELECT * FROM videos WHERE id = ?", (vid,)).fetchone()
+        if video:
+            results.append({
+                "video_id": vid,
+                "filename": video["filename"],
+                "duration": video["duration"],
+                "score": score,
+                "tags": tags_by_video.get(vid, []),
+            })
+    return results
+
+
+def search_videos(conn: sqlite3.Connection, video_index: VideoIndex,
+                   query: Optional[str], tags: Optional[list[str]], limit: int = 5000):
+    """
+    Busca híbrida:
+    - se `query` for dado: rankeia por similaridade visual (CLIP) e dá boost
+      extra a vídeos cujas tags batem com o texto da busca.
+    - se `tags` for dado: filtra só vídeos que tenham pelo menos uma dessas tags.
+    - se nenhum dos dois: retorna os vídeos mais recentes.
+    """
+    tag_rows = conn.execute("SELECT video_id, tag FROM tags").fetchall()
+    tags_by_video: dict[str, list[str]] = {}
+    for row in tag_rows:
+        tags_by_video.setdefault(row["video_id"], []).append(row["tag"].lower())
+
+    candidate_scores: dict[str, float] = {}
+
+    if query:
+        for video_id, score in video_index.visual_search(query, top_k=5000):
+            candidate_scores[video_id] = score
+        query_words = set(query.lower().split())
+        for video_id, video_tags in tags_by_video.items():
+            if any(w in " ".join(video_tags) for w in query_words):
+                candidate_scores[video_id] = candidate_scores.get(video_id, 0.0) + 0.5
+        # busca tambem pelo nome do arquivo
+        termo = query.lower().strip()
+        for r in conn.execute("SELECT id, filename FROM videos").fetchall():
+            if termo and termo in (r["filename"] or "").lower():
+                candidate_scores[r["id"]] = candidate_scores.get(r["id"], 0.0) + 2.0
+    else:
+        all_videos = conn.execute("SELECT id FROM videos ORDER BY rowid DESC LIMIT 50000").fetchall()
+        for row in all_videos:
+            candidate_scores[row["id"]] = 0.0
+
+    if tags:
+        wanted = {t.lower() for t in tags}
+        candidate_scores = {
+            vid: score for vid, score in candidate_scores.items()
+            if wanted & set(tags_by_video.get(vid, []))
+        }
+
+    ranked = sorted(candidate_scores.items(), key=lambda kv: kv[1], reverse=True)[:limit]
+
+    results = []
+    for video_id, score in ranked:
+        video = conn.execute("SELECT * FROM videos WHERE id = ?", (video_id,)).fetchone()
+        if video:
+            results.append({
+                "video_id": video_id,
+                "filename": video["filename"],
+                "duration": video["duration"],
+                "score": score,
+                "tags": tags_by_video.get(video_id, []),
+            })
+    return results

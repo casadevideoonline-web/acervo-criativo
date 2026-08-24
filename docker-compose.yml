@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - APP_USER=$APP_USER
+      - APP_PASSWORD=$APP_PASSWORD
+      - DATA_DIR=$DATA_DIR
+      - ADMIN_PASSWORD=$ADMIN_PASSWORD
+      - GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT
+    volumes:
+      - ./data:/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

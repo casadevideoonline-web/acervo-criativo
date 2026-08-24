@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Acervo — Casa de Vídeo</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .admin-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .admin-header img { height: 40px; }
+    .admin-title { font-size: 1.4rem; font-weight: 700; }
+    .admin-sub { color: #888; margin-bottom: 20px; font-size: 0.9rem; }
+    .admin-search { width: 100%; padding: 12px 16px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; }
+    .admin-count { color: #888; font-size: 0.85rem; margin-bottom: 12px; }
+    .admin-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 8px; background: #fff; }
+    .admin-row img { width: 90px; height: 54px; object-fit: cover; border-radius: 4px; background: #eee; flex-shrink: 0; }
+    .admin-row-name { flex: 1; font-size: 0.95rem; word-break: break-word; color: #1a1a1a; font-weight: 500; }
+    .admin-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .admin-btn { padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+    .admin-btn-rename { background: #e8f0fe; color: #1a56c4; }
+    .admin-btn-rename:hover { background: #d6e4fd; }
+    .admin-btn-delete { background: #fdecec; color: #c62828; }
+    .admin-btn-delete:hover { background: #fbd9d9; }
+    .admin-empty { color: #888; padding: 40px; text-align: center; }
+    .admin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
+    .admin-toast.show { opacity: 1; }
+    .admin-back { display: inline-block; margin-bottom: 16px; color: #1a56c4; text-decoration: none; font-size: 0.9rem; }
+    .admin-back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="admin-wrap">
+    <a class="admin-back" href="/">‹ Voltar ao acervo</a>
+    <div class="admin-header">
+      <img src="logo.png" alt="Casa de Vídeo">
+      <span class="admin-title">Gerenciar Acervo</span>
+    </div>
+    <div class="admin-sub">Renomear ou excluir vídeos do acervo. Requer senha de administrador.</div>
+    <input type="text" class="admin-search" id="admin-search" placeholder="Filtrar por nome do vídeo...">
+    <div class="admin-count" id="admin-count"></div>
+    <div id="admin-list"></div>
+  </div>
+  <div class="admin-toast" id="admin-toast"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

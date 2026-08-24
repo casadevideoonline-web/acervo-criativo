@@ -1,0 +1,41 @@
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Banco de dados
+data/catalog.db
+data/catalog.db.*
+
+# Thumbnails (geradas automaticamente)
+data/thumbnails/
+
+# Vídeos (armazenados no GCS)
+videos/
+novos_para_checar/
+conferir_depois/
+
+# Docker
+.dockerignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Backups
+*.bak
+*.backup
+*~
+
+# Logs
+*.log
