@@ -4,3 +4,4 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - /var/www/casadevideo.com.br:/srv/casadevideo:ro
+      - /var/www/casadevideo.com.dev:/srv/casadevideo-dev:ro

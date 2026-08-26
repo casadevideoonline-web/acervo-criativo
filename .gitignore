@@ -36,6 +36,7 @@ venv/
 *.bak
 *.backup
 *~
+*.bak-*
 
 # Logs
 *.log

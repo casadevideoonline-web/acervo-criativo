@@ -28,7 +28,7 @@ www.casadevideo.com.br {
 
 # preview interno via tunel SSH (so acessivel de dentro da VM)
 :8080 {
-	root * /srv/casadevideo
+	root * /srv/casadevideo-dev
 	encode gzip
 	try_files {path} {path}/ {path}.html
 	file_server
