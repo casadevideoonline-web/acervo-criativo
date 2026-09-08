@@ -98,48 +98,12 @@ function renderResults(results) {
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
-      <button class="card-rename" title="Renomear vídeo">✏️</button>
-      <button class="card-delete" title="Deletar vídeo">🗑</button>
       <img src="${API}/thumbnail/${video.video_id}" loading="lazy">
       <div class="card-meta">
         <div class="card-filename">${video.filename}</div>
         <div class="card-time">${formatTime(video.duration)}</div>
         <div class="card-tags">${video.tags.map(t => `<span>${t}</span>`).join("")}</div>
       </div>`;
-    card.querySelector(".card-rename").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const novo = prompt("Novo nome para o vídeo:", video.filename);
-      if (novo === null || novo.trim() === "" || novo.trim() === video.filename) return;
-      try {
-        const res = await fetch(`${API}/admin/rename/${video.video_id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename: novo.trim() })
-        });
-        if (res.ok) {
-          video.filename = novo.trim();
-          const idx = currentResults.findIndex(v => v.video_id === video.video_id);
-          if (idx >= 0) currentResults[idx].filename = novo.trim();
-          card.querySelector(".card-filename").textContent = novo.trim();
-        } else {
-          alert("Erro ao renomear. Tente de novo.");
-        }
-      } catch (err) { alert("Erro ao renomear: " + err.message); }
-    });
-    card.querySelector(".card-delete").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (!confirm(`Deletar "${video.filename}"? Esta ação não pode ser desfeita.`)) return;
-      try {
-        const res = await fetch(`${API}/admin/delete/${video.video_id}`, { method: "DELETE" });
-        if (res.ok) {
-          currentResults = currentResults.filter(v => v.video_id !== video.video_id);
-          card.remove();
-          loadStats();
-        } else {
-          alert("Erro ao deletar. Tente de novo.");
-        }
-      } catch (err) { alert("Erro ao deletar: " + err.message); }
-    });
     card.addEventListener("click", () => openModal(video));
     els.results.appendChild(card);
   }

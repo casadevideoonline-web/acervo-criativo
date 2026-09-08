@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subir Novos Vídeos — Casa de Vídeo</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .upload-wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .upload-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .upload-header img { height: 40px; }
+    .upload-title { font-size: 1.4rem; font-weight: 700; }
+    .upload-sub { color: #888; margin-bottom: 20px; font-size: 0.9rem; }
+    .upload-back { display: inline-block; margin-bottom: 16px; color: #1a56c4; text-decoration: none; font-size: 0.9rem; }
+    .upload-back:hover { text-decoration: underline; }
+    .zona-de-soltar { border: 2px dashed #b9c6e0; border-radius: 12px; padding: 48px 24px; text-align: center; color: #667; background: #f7f9fd; cursor: pointer; transition: background 0.2s, border-color 0.2s; margin-bottom: 20px; }
+    .zona-de-soltar:hover, .zona-de-soltar.arrastando { background: #eef3fc; border-color: #1a56c4; }
+    .zona-de-soltar strong { color: #1a56c4; }
+    .zona-de-soltar .dica { font-size: 0.8rem; color: #99a; margin-top: 8px; }
+    .fila-item { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 8px; background: #fff; }
+    .fila-nomes { flex: 1; min-width: 0; }
+    .fila-nome-original { font-size: 0.9rem; color: #1a1a1a; font-weight: 500; word-break: break-word; }
+    .fila-nome-tratado { font-size: 0.8rem; color: #888; word-break: break-word; }
+    .fila-nome-tratado.diferente { color: #b8860b; }
+    .fila-tamanho { font-size: 0.8rem; color: #999; flex-shrink: 0; }
+    .fila-status { flex-shrink: 0; font-size: 0.8rem; font-weight: 600; padding: 5px 10px; border-radius: 6px; min-width: 110px; text-align: center; }
+    .status-aguardando { background: #f0f0f0; color: #777; }
+    .status-enviando { background: #e8f0fe; color: #1a56c4; }
+    .status-processando { background: #fff4d6; color: #9a7b00; }
+    .status-concluido { background: #e3f4e3; color: #217a2b; }
+    .status-erro { background: #fdecec; color: #c62828; }
+    .barra-progresso { height: 4px; background: #e5e5e5; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .barra-progresso-preenchida { height: 100%; width: 0%; background: #1a56c4; transition: width 0.2s; }
+    .upload-acoes { display: flex; gap: 10px; margin: 16px 0; align-items: center; }
+    .botao-enviar { padding: 12px 28px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 700; background: #1a56c4; color: #fff; }
+    .botao-enviar:hover { background: #164aa8; }
+    .botao-enviar:disabled { background: #b9c6e0; cursor: not-allowed; }
+    .botao-limpar { padding: 12px 20px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 0.9rem; background: #fff; color: #555; }
+    .resumo-final { color: #555; font-size: 0.9rem; margin-top: 8px; }
+    .upload-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
+    .upload-toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="upload-wrap">
+    <a class="upload-back" href="/">‹ Voltar ao acervo</a>
+    <div class="upload-header">
+      <img src="logo.png" alt="Casa de Vídeo">
+      <span class="upload-title">Subir Novos Vídeos</span>
+    </div>
+    <div class="upload-sub">
+      Envio em lote para o acervo. Os nomes dos arquivos são padronizados
+      automaticamente e cada vídeo já entra na busca ao concluir.
+      Requer senha de administrador.
+    </div>
+
+    <div class="zona-de-soltar" id="zona-de-soltar">
+      <div><strong>Clique para escolher</strong> ou arraste os vídeos aqui</div>
+      <div class="dica">Formatos aceitos: .mp4 .mov .avi .mkv .webm — já convertidos/otimizados</div>
+    </div>
+    <input type="file" id="seletor-de-arquivos" multiple
+           accept=".mp4,.mov,.avi,.mkv,.webm" style="display: none;">
+
+    <div id="fila-de-envio"></div>
+
+    <div class="upload-acoes">
+      <button class="botao-enviar" id="botao-enviar" disabled>Enviar todos</button>
+      <button class="botao-limpar" id="botao-limpar">Limpar lista</button>
+    </div>
+    <div class="resumo-final" id="resumo-final"></div>
+  </div>
+  <div class="upload-toast" id="upload-toast"></div>
+  <script src="novosvideos.js"></script>
+</body>
+</html>

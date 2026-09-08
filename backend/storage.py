@@ -65,6 +65,25 @@ def signed_url_download(nome_arquivo: str) -> str:
     )
 
 
+def listar_nomes_videos() -> set:
+    """
+    Nomes de arquivo (sem o prefixo videos/) ja existentes no bucket.
+    Usado na checagem de colisao antes de subir um video novo.
+    """
+    blobs = _get_client().list_blobs(BUCKET, prefix=f"{PREFIXO}/")
+    return {b.name[len(PREFIXO) + 1:] for b in blobs if b.name != f"{PREFIXO}/"}
+
+
+def subir_video(caminho_local: str, nome_arquivo: str) -> str:
+    """
+    Sobe o arquivo local para videos/<nome_arquivo> no bucket.
+    Retorna o caminho completo do objeto criado.
+    """
+    blob = _get_client().bucket(BUCKET).blob(f"{PREFIXO}/{nome_arquivo}")
+    blob.upload_from_filename(caminho_local, timeout=600)
+    return f"{PREFIXO}/{nome_arquivo}"
+
+
 def deletar_objeto(nome_arquivo: str) -> bool:
     """
     Remove o objeto do bucket. Retorna True se deletou, False se não existia.

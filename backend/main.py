@@ -8,11 +8,12 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
 
+import shutil
 import urllib.parse
 import unicodedata
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Header
+from fastapi import FastAPI, Depends, HTTPException, Request, Header, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -21,10 +22,15 @@ from pydantic import BaseModel
 import secrets
 
 from .search import VideoIndex, search_videos, get_similar_videos, suggest_tags, get_connection
-from .storage import signed_url_video, signed_url_download, deletar_objeto
+from .storage import signed_url_video, signed_url_download, deletar_objeto, listar_nomes_videos, subir_video
+from .nomes import tratar_nome_arquivo, resolver_colisao
+
+import process_videos
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
 DB_PATH = str(DATA_DIR / "catalog.db")
+
+EXTENSOES_DE_VIDEO_ACEITAS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 
 
 def normalize_tag(tag: str) -> str:
@@ -134,7 +140,8 @@ def remove_tag(payload: TagIn, user: str = Depends(require_login)):
 
 
 @app.post("/api/admin/rename/{video_id}")
-def admin_rename_video(video_id: str, payload: RenameIn):
+def admin_rename_video(video_id: str, payload: RenameIn,
+                       admin: bool = Depends(require_admin)):
     novo_nome = payload.filename.strip()
     if not novo_nome:
         raise HTTPException(400, "O nome nao pode ficar vazio")
@@ -150,7 +157,8 @@ def admin_rename_video(video_id: str, payload: RenameIn):
 
 
 @app.delete("/api/admin/delete/{video_id}")
-def admin_delete_video(video_id: str):
+def admin_delete_video(video_id: str,
+                      admin: bool = Depends(require_admin)):
     conn = get_connection(DB_PATH)
     row = conn.execute("SELECT * FROM videos WHERE id = ?", (video_id,)).fetchone()
     if not row:
@@ -174,6 +182,42 @@ def admin_delete_video(video_id: str):
     conn.close()
     video_index.reload()
     return {"ok": True}
+
+
+@app.post("/api/admin/upload")
+def admin_upload_video(arquivo: UploadFile = File(...),
+                       user: str = Depends(require_login),
+                       admin: bool = Depends(require_admin)):
+    extensao = os.path.splitext(arquivo.filename or "")[1].lower()
+    if extensao not in EXTENSOES_DE_VIDEO_ACEITAS:
+        raise HTTPException(400, f"Extensao nao aceita: {extensao}")
+
+    # nome tratado + resolucao de colisao contra o que existe no bucket
+    nomes_no_bucket = listar_nomes_videos()
+    nome_tratado = resolver_colisao(tratar_nome_arquivo(arquivo.filename), nomes_no_bucket)
+
+    pasta_de_upload = DATA_DIR / "upload_temp"
+    pasta_de_upload.mkdir(parents=True, exist_ok=True)
+    caminho_local = pasta_de_upload / nome_tratado
+    try:
+        with open(caminho_local, "wb") as destino:
+            shutil.copyfileobj(arquivo.file, destino)
+
+        # dedup: mesma assinatura nome+tamanho usada pelo process_videos
+        assinatura = process_videos.file_signature(str(caminho_local))
+        conn = get_connection(DB_PATH)
+        if conn.execute("SELECT id FROM videos WHERE file_hash = ?", (assinatura,)).fetchone():
+            conn.close()
+            raise HTTPException(409, "Video ja existe no acervo (mesmo nome e tamanho)")
+
+        subir_video(str(caminho_local), nome_tratado)
+        process_videos.process_video(str(caminho_local), conn,
+                                     str(DATA_DIR / "thumbnails"))
+        conn.close()
+        video_index.reload()
+        return {"ok": True, "filename": nome_tratado}
+    finally:
+        caminho_local.unlink(missing_ok=True)
 
 
 @app.post("/api/reload-index")
