@@ -1,0 +1,11 @@
+services:
+  app:
+    ports:
+      - "127.0.0.1:8091:8000"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcp/adc.json
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      - ./process_videos.py:/app/process_videos.py
+      - C:\Users\rafae\AppData\Roaming\gcloud\application_default_credentials.json:/gcp/adc.json:ro
