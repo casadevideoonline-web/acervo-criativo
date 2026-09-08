@@ -72,6 +72,7 @@ function render() {
     list.appendChild(row);
   }
 }async function renameVideo(v) {
+  if (!adminPassword && !askPassword()) return;
   const novo = window.prompt("Novo nome para o video:", v.filename || "");
   if (novo === null) return;
   const nome = novo.trim();
@@ -90,6 +91,7 @@ function render() {
 }
 
 async function deleteVideo(v) {
+  if (!adminPassword && !askPassword()) return;
   const nome = v.filename || "(sem nome)";
   const ok = window.confirm("Tem certeza que deseja EXCLUIR este video?\n\n" + nome + "\n\nIsso apaga o arquivo permanentemente e NAO pode ser desfeito.");
   if (!ok) return;
